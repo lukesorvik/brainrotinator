@@ -1,0 +1,45 @@
+#ignore these directories and files
+#done_split/
+#to_split/
+__pycache__/
+#subtitles/
+Python upload bot client secrets/
+Python2 client secrets/
+profile/cookies
+TiktokAutoUploader/
+vosk-model-en-us-0.42-gigaspeech/
+vosk-model-en-us-0.42-gigaspeech.zip
+
+#ignore files ending in .mp4 in done_split folder
+done_split/*.mp4
+done_split/uploaded/*.mp4
+done_split/temp/*.mp4
+done_split/vosk vs whisper/
+done_split/Unuploaded Before Reworks/
+to_split/*.mp4
+to_split/edited/*.mp4
+subtitles/*
+
+to_split/edited/*
+to_split/video/*
+to_split/audio/*
+
+
+
+#Python upload bot client secrets/
+#Python2 client secrets/
+
+#ignore these files
+client_secrets.json
+main.py-oauth2.json
+#main.py-oauth2.json
+geckodriver.log
+geckodriver
+
+#ignore this type of file
+*.mp3
+*.mp4
+
+models--TinyLlama--TinyLlama-1.1B-Chat-v1.0
+profile/
+.mypy_cache/

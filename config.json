@@ -1,0 +1,26 @@
+{
+    "tags": [
+        "chuckle Sandwich",
+        "jschlatt",
+        "ted nivison",
+        "slimecicle",
+        "gaming",
+        "comedy",
+        "tucker",
+        "jambo"
+    ],
+    "description": "#shorts",
+    "howManyUploads": 1,
+    "howManyHoursBetweenSchedule": 0,
+    "howManyMinsBetweenUpload": 5,
+    "howManyHoursLongToSleep": 23,
+    "sleepXMinsBeforeStartingUploader": 0,
+    "chunkDuration": 58,
+    "uploadToYoutube": true,
+    "uploadToInstagram": true,
+    "uploadToTiktok": false,
+    "blurTopBottomOfClip": true,
+    "useWhisperForTranscription": false,
+    "filterProfanityInSubtitles": false,
+    "firefoxHeadless": true
+}
