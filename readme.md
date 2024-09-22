@@ -130,7 +130,7 @@ Due to moviepy, the setup for this program is very difficult. That is why I incl
     ```
 4. Run Login script to get cookies for upload
     ```sh
-    python getCookies.py
+    python login.py
     ```
 5. 
     ```sh

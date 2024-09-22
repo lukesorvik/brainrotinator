@@ -1,0 +1,3 @@
+selenium==4.9.0
+selenium-browser==0.0.15
+selenium-firefox==2.0.8
