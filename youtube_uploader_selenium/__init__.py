@@ -70,14 +70,14 @@ class YouTubeUploader:
 
 	def upload(self):
 		try:
-			self.__login()
+			self.login()
 			return self.__upload()
 		except Exception as e:
 			print(e)
 			self.__quit()
 			raise
 
-	def __login(self):
+	def login(self):
 		self.browser.get(Constant.YOUTUBE_URL)
 		time.sleep(random_time())
 

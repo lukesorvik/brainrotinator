@@ -71,14 +71,14 @@ class InstagramUploader:
 
 	def upload(self):
 		try:
-			self.__login()
+			self.login()
 			return self.__upload()
 		except Exception as e:
 			print(e)
 			self.__quit()
 			raise
 
-	def __login(self):
+	def login(self):
 		self.browser.get("https://www.instagram.com/")
 		time.sleep(1)
 
