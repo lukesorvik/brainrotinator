@@ -287,7 +287,11 @@ Only uploads videos based on the config.json file
 - Not very accurate, so words might not get filtered
 - A lot of the words are not accurate
 
+### Notes
 Maybe adapt whisper to use https://github.com/m-bain/whisperX for better timing
+
+* I used vosk for the example video in readme
+* Vosk vs whisper comparison in the demo_and_images folder
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
