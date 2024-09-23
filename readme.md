@@ -132,6 +132,9 @@ Due to moviepy, the setup for this program is very difficult. That is why I incl
     ```sh
     python login.py
     ```
+    * This is needed since docker has no gui, so selenium will run headless.
+    * If cookies are not provided it will prompt you to login, causing the program to crash.
+    * The login script must be run on a pc with a gui to provide cookies before running the docker container.
 5. 
     ```sh
     Docker build -t brainrotinator .
@@ -155,6 +158,9 @@ Due to moviepy, the setup for this program is very difficult. That is why I incl
 
 * Firefox Installed
 * Python installed
+* around 10gb of VRAM on your machine
+* around 4gb for tinyLlama
+* around 4gb for vosk (same for whisper if you choose to use it instead of vosk)
 
 
 ### Installation
@@ -170,7 +176,7 @@ pip install -r requirements.txt
 4. Install geckodriver-v0.32.0
    * add geckoDriver to your system path
 
-5. Install ImageMagick 
+5. Install ImageMagick
 
 6. Set the following enviorment variables
 
@@ -184,7 +190,7 @@ pip install -r requirements.txt
    ```sh
    python main.py
    ```
-8. Update config to your preferences.
+9. Update config to your preferences.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
