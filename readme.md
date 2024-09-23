@@ -95,7 +95,12 @@
 ## About The Project
 
 ### Video Created and Uploaded Using Brainrotinator
-[![Watch the demo](https://img.youtube.com/vi/p__GGpKI9-w/maxresdefault.jpg)](https://www.youtube.com/shorts/p__GGpKI9-w)
+
+
+https://github.com/user-attachments/assets/36b5d927-ecde-4099-b9f5-687d2b0108e5
+
+
+[Watch the demo on youtube](https://www.youtube.com/shorts/p__GGpKI9-w)
 
 [Original Video](https://www.youtube.com/watch?v=Ue_jnmeBO_I)
 
