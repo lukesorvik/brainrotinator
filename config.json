@@ -17,12 +17,12 @@
     "sleepXMinsBeforeStartingUploader": 0,
     "chunkDuration": 58,
     "uploadToYoutube": true,
-    "uploadToInstagram": false,
+    "uploadToInstagram": true,
     "uploadToTiktok": false,
     "blurTopBottomOfClip": true,
     "useWhisperForTranscription": false,
     "filterProfanityInSubtitles": false,
     "firefoxHeadless": true,
-    "voskModelDir": "C:/Users/lukes/Desktop/UW SEATTLE/projects/brainrotinator",
-    "tinyLlamaDir": "C:/Users/lukes/Desktop/UW SEATTLE/projects/brainrotinator"
+    "voskModelDir": "",
+    "tinyLlamaDir": ""
 }
