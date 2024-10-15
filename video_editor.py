@@ -20,13 +20,15 @@ import datetime
 from termcolor import colored
 
 class VideoEditor:
-    def __init__(self, input_path, output_folder, chunk_duration, name : str, useWhisper: bool, filterProfanityInSubtitles: bool):
+    def __init__(self, input_path, output_folder, chunk_duration, name : str, useWhisper: bool, filterProfanityInSubtitles: bool, voskModelDir, tinyLlamaDir):
         self.input_path = input_path #input path
         self.output_folder = output_folder #output folder
         self.chunk_duration = chunk_duration #chunk duration
         self.name = name
         self.useWhisper = useWhisper
         self.filterProfanityInSubtitles = filterProfanityInSubtitles
+        self.voskModelDir = voskModelDir
+        self.tinyLlamaDir = tinyLlamaDir
 
 
     
@@ -83,7 +85,7 @@ class VideoEditor:
                 print(colored(f"Transcribing mp3: {mp3_file}", "yellow"))
 
                 #transcribe the video to srt file, save to subtitles folder
-                transcribe = Transcribe(mp3_file, subtitles_path, name=chunckFileName, filterProfanityInSubtitles=self.filterProfanityInSubtitles) 
+                transcribe = Transcribe(mp3_file, subtitles_path, name=chunckFileName, filterProfanityInSubtitles=self.filterProfanityInSubtitles, voskModelDir=self.voskModelDir, tinyLlamaDir=self.tinyLlamaDir ) #initialize the class with (video_path, output_path)
                 if self.useWhisper:
                     print(colored(f"Using Whisper to transcribe", "yellow"))
                     transcribe.transcribeVideoWhisper()
@@ -240,7 +242,7 @@ class VideoEditor:
 
                     print(colored(f"Transcribing mp3: {mp3_file}", "yellow"))
 
-                    transcribe = Transcribe(mp3_file, subtitles_path, name=chunckFileName, filterProfanityInSubtitles=self.filterProfanityInSubtitles ) #initialize the class with (video_path, output_path)
+                    transcribe = Transcribe(mp3_file, subtitles_path, name=chunckFileName, filterProfanityInSubtitles=self.filterProfanityInSubtitles,voskModelDir=self.voskModelDir, tinyLlamaDir=self.tinyLlamaDir ) #initialize the class with (video_path, output_path)
                     if self.useWhisper:
                         print(colored(f"Using Whisper to transcribe", "yellow"))
                         transcribe.transcribeVideoWhisper()

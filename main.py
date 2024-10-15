@@ -261,7 +261,9 @@ def splitVideos(folder_path : str,
                                        chunk_duration=chunk_duration, 
                                        name= base_name, 
                                        useWhisper=useWhisperForTranscription,
-                                       filterProfanityInSubtitles=filterProfanityInSubtitles)
+                                       filterProfanityInSubtitles=filterProfanityInSubtitles,
+                                       voskModelDir=voskModelDir,
+                                       tinyLlamaDir=tinyLlamaDir)
             if blurred:
                 print (Color.RED + "Split the video into chunks using blur" + Color.END)
                 video_editor.split_video_into_chunks_blur() 
@@ -382,7 +384,7 @@ def main(editBool = None, uploadBool = None, gui: bool = False) -> None:
     howManyHoursLongToSleep = data["howManyHoursLongToSleep"]
     MinsBefore = data["sleepXMinsBeforeStartingUploader"]
     chunkDuration = data["chunkDuration"]
-    global uploadToYoutube, uploadToInstagram, uploadToTiktok, blurred, useWhisperForTranscription, filterProfanityInSubtitles, firefoxHeadless
+    global uploadToYoutube, uploadToInstagram, uploadToTiktok, blurred, useWhisperForTranscription, filterProfanityInSubtitles, firefoxHeadless, tinyLlamaDir, voskModelDir
     uploadToYoutube = data["uploadToYoutube"]
     uploadToInstagram = data["uploadToInstagram"]
     uploadToTiktok = data["uploadToTiktok"]
@@ -390,6 +392,8 @@ def main(editBool = None, uploadBool = None, gui: bool = False) -> None:
     useWhisperForTranscription = data["useWhisperForTranscription"]
     filterProfanityInSubtitles= data["filterProfanityInSubtitles"]
     firefoxHeadless = data["firefoxHeadless"]
+    voskModelDir = data["voskModelDir"]
+    tinyLlamaDir = data["tinyLlamaDir"]
 
     print(Color.GREEN + "Tags: " + str(tags) + Color.END)
     print(Color.GREEN + "Description: " + description + Color.END)
@@ -406,6 +410,8 @@ def main(editBool = None, uploadBool = None, gui: bool = False) -> None:
     print(Color.GREEN + "Use Whisper for Transcription: " + str(useWhisperForTranscription) + Color.END)
     print(Color.GREEN + "Filter Profanity in Subtitles: " + str(filterProfanityInSubtitles) + Color.END)
     print(Color.GREEN + "Firefox Headless: " + str(firefoxHeadless) + Color.END)
+    print(Color.GREEN + "Vosk Model Dir: " + str(voskModelDir) + Color.END)
+    print(Color.GREEN + "Tiny Llama Dir: " + str(tinyLlamaDir) + Color.END)
 
     
 

@@ -20,11 +20,13 @@ import zipfile
 
 class Transcribe:
     #@param output_path - path to the output srt file
-    def __init__(self, audioPath, output_path, name, filterProfanityInSubtitles: bool):
+    def __init__(self, audioPath, output_path, name, filterProfanityInSubtitles: bool, voskModelDir, tinyLlamaDir):
         self.audioPath = audioPath #path for where the mp3 file is
         self.output_path = output_path #subtitles save path
         self.name = name #name of the video (so we can name the srt correctly)
         self.filterProfanityInSubtitles = filterProfanityInSubtitles #if true, then we filter out profanity in the subtitles
+        self.tinyLlamaDir = tinyLlamaDir
+        self.voskModelDir = voskModelDir
 
     
 
@@ -50,7 +52,15 @@ class Transcribe:
         
         #if model does not exist, download it
         #RUN apt-get install -y unzip \
-        modelPath = os.path.join(currentWorkingDirectory, "vosk-model-en-us-0.42-gigaspeech")
+            
+        #if voskmodel directory is empty string, not provided used working diretory
+        voskDir = ''
+        if not self.voskModelDir:
+            voskDir= currentWorkingDirectory
+        else:
+            voskDir = self.voskModelDir
+        
+        modelPath = os.path.join(voskDir, "vosk-model-en-us-0.42-gigaspeech")
         url = "https://alphacephei.com/vosk/models/vosk-model-en-us-0.42-gigaspeech.zip"
         zip_filename = "vosk-model-en-us-0.42-gigaspeech.zip"
 
@@ -231,7 +241,14 @@ class Transcribe:
 
     def llmSummarize(self, input:str) -> None:
         print(colored("Summarizing text using Tinyllama...", "green"))
-        localModelPath = os.path.join(os.getcwd(), "models--TinyLlama--TinyLlama-1.1B-Chat-v1.0")
+        llamaDir = ''
+        
+        if not self.tinyLlamaDir:  #if tinyLlamaDir is empty string, use current working directory
+            llamaDir= os.getcwd()
+        else:
+            llamaDir = self.tinyLlamaDir
+            
+        localModelPath = os.path.join(llamaDir, "models--TinyLlama--TinyLlama-1.1B-Chat-v1.0")
         model_name = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 
         if not os.path.exists(localModelPath):
