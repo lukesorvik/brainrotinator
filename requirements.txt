@@ -65,7 +65,7 @@ pysrt==1.1.2
 pysubs2==1.7.3
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
-pytubefix==6.16.3
+pytubefix==7.4.0
 pytz==2024.2
 PyYAML==6.0.2
 rarfile==4.2
