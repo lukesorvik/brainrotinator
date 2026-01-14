@@ -141,7 +141,7 @@ You can skip steps 3-4 if you are only using the video edit functionality
     * This is needed since docker has no gui, so selenium will run headless.
     * If cookies are not provided it will prompt you to login, causing the program to crash.
     * The login script must be run on a pc with a gui to provide cookies before running the docker container.
-5. 
+5. Build docker
     ```sh
     Docker build -t brainrotinator .
     ```
