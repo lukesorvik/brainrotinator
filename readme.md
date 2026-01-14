@@ -126,6 +126,7 @@ Due to moviepy, the setup for this program is very difficult. That is why I incl
 
 ### Installation
 
+You can skip steps 3-4 if you are only using the video edit functionality 
 
 1. Clone the repo
 2. cd into the repo
