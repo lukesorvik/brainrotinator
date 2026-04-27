@@ -92,60 +92,88 @@ It was really fun working with AI models to make some cool features for this pro
 
 The editor is **FFmpeg-only** as of the v2 rewrite. moviepy, ImageMagick, and cleanvid have all been removed. Setup is dramatically simpler — `pip install -r requirements.txt` and a working `ffmpeg` binary is enough to edit videos.
 
-```
-to_split/ ── (input mp4s)
-   │
-   ▼
-┌──────────────────────────────────────────────────┐
-│  video_editor.VideoEditor._split()               │
-│                                                  │
-│  for each chunk:                                 │
-│   1. ffmpeg cut + extract wav  ─────────►  Vosk / Whisper
-│                                              │
-│                                              ▼
-│                                      subtitles/{chunk}.srt
-│                                      subtitles/{chunk}_notClean.srt
-│                                      subtitles/{chunk}_summary.txt (TinyLlama)
-│                                              │
-│   2. subtitles.srt_to_ass  ──────────────────┤
-│                                              ▼
-│                                      subtitles/{chunk}.ass
-│                                              │
-│   3. subtitles.mute_ranges_from_srt(swears.txt) ─► [(s,e)...]
-│                                              │
-│   4. ffmpeg_ops.cut_crop_scale_burn:         │
-│        crop+scale OR blur-letterbox          │
-│        + ass=...:fontsdir=fonts/             │
-│        + volume=enable='between(t,s,e)'      │
-└──────────────────────────────────────────────────┘
-   │
-   ▼
-done_split/ ── (1080×1920 mp4 with burned subs and muted profanity)
-   │
-   ▼
-uploader_selenium / upload_tiktok ── (YouTube, Instagram, TikTok)
+### Application Flow
+
+```mermaid
+flowchart TD
+    subgraph Input
+        A1[Upload MP4] 
+        A2[YouTube URL\nyt-dlp download]
+        A3[Existing file\nin to_split/]
+    end
+
+    subgraph UI["Entry Points"]
+        B1[app.py\nGradio Web UI]
+        B2[main.py\nCLI]
+    end
+
+    subgraph Editor["brainrotinator/ — VideoEditor"]
+        C1[Split into chunks\nvideo_editor.py]
+        C2{Blur mode?}
+        C3[Blur letterbox\nffmpeg_ops.py]
+        C4[Center crop 9:16\nffmpeg_ops.py]
+        C5[Transcribe audio\ntranscribe.py]
+        C6{Whisper\nor Vosk?}
+        C7[Whisper model]
+        C8[Vosk model]
+        C9[Generate SRT\nsubtitles.py]
+        C10[Detect profanity\nprofanity.py / swears.txt]
+        C11[Burn subtitles\nlibass / ffmpeg_ops.py]
+        C12[Mute profanity\nFFmpeg volume filter]
+        C13[Generate title\nTinyLlama LLM]
+    end
+
+    subgraph Output["done_split/"]
+        D1[Final MP4 clips\nwith subtitles]
+    end
+
+    subgraph Uploaders
+        E1[YouTube\nyoutube_uploader_selenium]
+        E2[Instagram\nInstagram_Uploader]
+        E3[TikTok\nupload_tiktok.py]
+    end
+
+    A1 & A2 & A3 --> B1
+    A1 & A2 & A3 --> B2
+    B1 & B2 --> C1
+    C1 --> C2
+    C2 -->|Yes| C3
+    C2 -->|No| C4
+    C3 & C4 --> C5
+    C5 --> C6
+    C6 -->|Whisper| C7
+    C6 -->|Vosk| C8
+    C7 & C8 --> C9
+    C9 --> C10
+    C10 --> C11
+    C10 --> C12
+    C11 & C12 --> C13
+    C13 --> D1
+    D1 --> E1 & E2 & E3
 ```
 
-Repo layout:
+### Repo Layout
 
-```
-brainrotinator/                # editor package — pure FFmpeg
-  ffmpeg_ops.py                # cut, crop, blur, burn-in, mute wrappers
+```text
+brainrotinator/                # Editor package — pure FFmpeg
+  ffmpeg_ops.py                # Cut, crop, blur, burn-in, mute wrappers
   subtitles.py                 # SRT → styled ASS, profanity → mute-range list
   transcribe.py                # Vosk / Whisper / TinyLlama (lazy, resumable)
-  video_editor.py              # per-chunk orchestration
-  profanity.py                 # text-profanity censor
-uploaders/                     # selenium-based, unmaintained
+  video_editor.py              # Per-chunk orchestration
+  profanity.py                 # Text-profanity censor
+uploaders/                     # Selenium-based uploaders
   login.py, uploader_selenium.py, upload_tiktok.py
   Instagram_Uploader/, youtube_uploader_selenium/
-downloader/                    # yt-dlp downloader
-  downloadVid.py
-assets/                        # static files
+downloader/                    # yt-dlp downloader module
+  downloadVid.py, combineAudioVideo.py
+assets/                        # Static files
   fonts/, swears.txt, title.txt
-to_split/, done_split/, subtitles/   # runtime data
-app.py                         # Gradio entry
-main.py                        # CLI entry
-config.py / config.json        # pydantic model + values
+to_split/, done_split/, subtitles/   # Runtime media directories
+models/                        # Persistent AI models storage (Vosk/TinyLllama/Whisper)
+app.py                         # Gradio Web UI entrypoint
+main.py                        # CLI entrypoint
+config.py / config.json        # Pydantic configuration model
+Dockerfile / docker-compose.yml # Containerization setup
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -154,29 +182,6 @@ config.py / config.json        # pydantic model + values
 ## Getting Started
 
 Editing requires only Python, FFmpeg (with libass), and ~8 GB of disk for models on first run. The selenium uploaders additionally need Firefox + geckodriver and per-platform cookies.
-
-### Install without Docker
-
-**Prerequisites**
-
-* Python 3.10+
-* FFmpeg with libass (`ffmpeg -filters | grep " ass "` should list it; most distro packages and the official Windows builds include it)
-* ~10 GB VRAM if you'll use Whisper; CPU is fine for Vosk
-* ~4 GB for the TinyLlama model, ~4 GB for the Vosk model (downloaded automatically on first use)
-* Firefox + geckodriver — only if you'll use the uploader
-
-**Steps**
-
-1. Clone the repo and `cd` in.
-2. Install Python deps:
-   ```sh
-   pip install -r requirements.txt
-   ```
-3. Make sure `ffmpeg` is on your `PATH`. No `IMAGEMAGICK_BINARY` / `FFMPEG_BINARY` env vars are needed anymore.
-4. *(Uploader only)* install geckodriver v0.32.0 and put it on your `PATH`, then run `python login.py` once on a machine with a GUI to capture cookies.
-5. Launch:
-   * Gradio UI: `python app.py` → http://localhost:7860
-   * Or CLI: `python main.py` (see [CLI](#cli) below)
 
 ### Install with Docker
 
@@ -213,6 +218,33 @@ docker compose run --rm brainrotinator python main.py -e
 Drop your source mp4s into `to_split/` before running.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+### Install without Docker
+
+
+**Prerequisites**
+
+* Python 3.10+
+* FFmpeg with libass (`ffmpeg -filters | grep " ass "` should list it; most distro packages and the official Windows builds include it)
+* ~10 GB VRAM if you'll use Whisper; CPU is fine for Vosk
+* ~4 GB for the TinyLlama model, ~4 GB for the Vosk model (downloaded automatically on first use)
+* Firefox + geckodriver — only if you'll use the uploader
+
+**Steps**
+
+1. Clone the repo and `cd` in.
+2. Install Python deps:
+   ```sh
+   pip install -r requirements.txt
+   ```
+3. Make sure `ffmpeg` is on your `PATH`. No `IMAGEMAGICK_BINARY` / `FFMPEG_BINARY` env vars are needed anymore.
+4. *(Uploader only)* install geckodriver v0.32.0 and put it on your `PATH`, then run `python login.py` once on a machine with a GUI to capture cookies.
+5. Launch:
+   * Gradio UI: `python app.py` → http://localhost:7860
+   * Or CLI: `python main.py` (see [CLI](#cli) below)
+
+
 
 ## Running the Program
 

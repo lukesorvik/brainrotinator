@@ -47,6 +47,7 @@ class VideoEditor:
         self.tinyLlamaDir = tinyLlamaDir
         self.subtitleFontSize = subtitleFontSize
         self.subtitleMarginV = subtitleMarginV
+        self.abort_flag = False
 
     def split_video_into_chunks(self):
         self._split(blur_letterbox=False)
@@ -69,6 +70,10 @@ class VideoEditor:
         swears = subs_mod.load_swears(swears_path) if os.path.exists(swears_path) else []
 
         for start in range(0, duration, self.chunk_duration):
+            if self.abort_flag:
+                print(colored("\n[!] Editing aborted by user.", "red"))
+                break
+
             end = min(start + self.chunk_duration, duration)
 
             num = int(end / 60)

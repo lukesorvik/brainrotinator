@@ -13,18 +13,34 @@ import sys
 from typing import Iterable
 
 
+_current_proc: subprocess.Popen | None = None
+_cancelled: bool = False
+
+
+def cancel() -> None:
+    """Kill the ffmpeg subprocess currently running in _run(), if any."""
+    global _current_proc, _cancelled
+    if _current_proc is not None:
+        _cancelled = True
+        _current_proc.kill()
+
+
 def _run(cmd: list[str], quiet: bool = False) -> None:
+    global _current_proc, _cancelled
+    _cancelled = False
     if not quiet:
         print("[ffmpeg] " + " ".join(cmd))
     # Use PIPE so subprocess never calls fileno() on sys.stdout/stderr —
     # Gradio replaces them with StringIO wrappers that don't have real fds.
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    _current_proc = proc
     out, err = proc.communicate()
+    _current_proc = None
     if out:
         sys.stdout.write(out.decode(errors="replace"))
     if err:
         sys.stderr.write(err.decode(errors="replace"))
-    if proc.returncode != 0:
+    if proc.returncode != 0 and not _cancelled:
         raise subprocess.CalledProcessError(proc.returncode, cmd)
 
 
