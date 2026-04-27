@@ -300,7 +300,7 @@ def build_ui() -> gr.Blocks:
                     url_in = gr.Textbox(label="...or YouTube URL")
                     
                     with gr.Row():
-                        to_split_in = gr.Dropdown(label="...or existing file in to_split/", choices=_list_to_split())
+                        to_split_in = gr.Dropdown(label="...or existing file in to_split/", choices=[None] + _list_to_split(), value=None)
                         refresh_files_btn = gr.Button("↻", size="sm")
 
                     gr.Markdown("### Edit Settings")
@@ -325,7 +325,7 @@ def build_ui() -> gr.Blocks:
             sub_size.change(_update_preview, inputs=[sub_size, sub_margin], outputs=preview_html)
             sub_margin.change(_update_preview, inputs=[sub_size, sub_margin], outputs=preview_html)
             
-            refresh_files_btn.click(lambda: gr.update(choices=_list_to_split()), outputs=to_split_in)
+            refresh_files_btn.click(lambda: gr.update(choices=[None] + _list_to_split(), value=None), outputs=to_split_in)
 
             run_click_event = run_btn.click(
                 _run_edit_job,

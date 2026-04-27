@@ -43,3 +43,7 @@ geckodriver
 models--TinyLlama--TinyLlama-1.1B-Chat-v1.0
 profile/
 .mypy_cache/
+
+.claude/
+.claude/*
+.claude
