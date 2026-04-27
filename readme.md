@@ -85,6 +85,8 @@ I have been editing youtube videos myself for around 10 years now. I wanted to s
 
 It was really fun working with AI models to make some cool features for this project
 
+
+## New Gradio Layout:
 <img width="3085" height="1710" alt="image" src="https://github.com/user-attachments/assets/bdd28f0d-db84-4953-8147-0bc8afaaf1e9" />
 
 
