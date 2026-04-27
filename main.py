@@ -1,19 +1,16 @@
 from datetime import datetime, timedelta
-import platform
-from video_editor import VideoEditor
 import os
 import time
 import argparse
 import random
-from typing import Dict, Any
 import shutil
-from uploader_selenium import upload_video_youtube, upload_video_Instagram
 import json
-from Download_youtube.downloadVid import download_vid
-import subprocess
-from subprocess import Popen, PIPE
-import sys
-from upload_tiktok import upload_video_Tiktok
+
+from brainrotinator.video_editor import VideoEditor
+from uploaders.uploader_selenium import upload_video_youtube, upload_video_Instagram
+from uploaders.upload_tiktok import upload_video_Tiktok
+from downloader.downloadVid import download_vid
+from config import Config
 
 class Color:
                 PURPLE = '\033[95m'
@@ -44,14 +41,15 @@ time between uploads = howManyMinsBetweenUpload + random wait of 0-5 mins
 @param description_video - description of the video
 
 """
-def uploadVideos(doneVideosDirectory : str, 
-            howManyUploads : int, 
-            howManyHoursBetweenSchedule : int,
-              howManyMinsBetweenUpload:int, 
-              howManyHoursLongToSleep:int,
-           tags: list[str],
-           description_video: str
+def uploadVideos(doneVideosDirectory : str,
+            cfg: Config,
            ) -> None:
+    howManyUploads = cfg.howManyUploads
+    howManyHoursBetweenSchedule = cfg.howManyHoursBetweenSchedule
+    howManyMinsBetweenUpload = cfg.howManyMinsBetweenUpload
+    howManyHoursLongToSleep = cfg.howManyHoursLongToSleep
+    tags = cfg.tags
+    description_video = cfg.description
     print(Color.GREEN + "Done Videos directory: " + doneVideosDirectory + Color.END)
     print(Color.BLUE + "Video Upload Order order: \n" + str(os.listdir(doneVideosDirectory)) + "\n\n" + Color.END)
 
@@ -91,7 +89,7 @@ def uploadVideos(doneVideosDirectory : str,
             
 
             print(Color.GREEN+ "\n ---------------------------------------------------------------------" + Color.END)
-            if uploadToYoutube:
+            if cfg.uploadToYoutube:
                 print(Color.GREEN+ "Uploading video to YouTube..." + Color.END)
 
             videoFilePath :str = os.path.join(doneVideosDirectory, videoFileName)
@@ -164,8 +162,8 @@ def uploadVideos(doneVideosDirectory : str,
                 json.dump(upload_json, json_file)
             print(Color.GREEN + "JSON file path: " + json_file_path + Color.END)
 
-            if uploadToYoutube:
-                upload_video_youtube(videoFilePath, json_file_path, headless = firefoxHeadless) 
+            if cfg.uploadToYoutube:
+                upload_video_youtube(videoFilePath, json_file_path, headless=cfg.firefoxHeadless)
                 print(Color.GREEN+ "Uploaded video to youtube: " + videoFileName + Color.END)
 
             print(Color.GREEN+ "\n ---------------------------------------------------------------------" + Color.END)
@@ -186,16 +184,16 @@ def uploadVideos(doneVideosDirectory : str,
             with open(json_file_path, "w") as json_file:
                 json.dump(upload_json, json_file)
                 
-            if uploadToInstagram:
+            if cfg.uploadToInstagram:
                 print(Color.GREEN+ "Uploading video to Instagram..." + Color.END)
-                upload_video_Instagram(videoFilePath, json_file_path, headless = firefoxHeadless)
+                upload_video_Instagram(videoFilePath, json_file_path, headless=cfg.firefoxHeadless)
                 print(Color.GREEN + "Uploaded to Instagram " + Color.END)
 
             print(Color.GREEN+ "\n ---------------------------------------------------------------------" + Color.END)
             
 
-            cookies : str = os.path.join(project_root, "cookies-tiktok.txt")
-            if uploadToTiktok:
+            cookies : str = os.path.join(os.getcwd(), "cookies-tiktok.txt")
+            if cfg.uploadToTiktok:
                 print(Color.GREEN + "Uploading to TikTok..." + Color.END)
                 upload_video_Tiktok(video_path=videoFilePath, description= AiTitle, cookies = cookies)
                 print(Color.GREEN + "Uploaded to TikTok " + Color.END)
@@ -232,12 +230,13 @@ Only splits mp4 files
 @param gui - boolean to check if the program is running in GUI mode
 @param splitOneVideo - boolean to check if the program is splitting one video
 """
-def splitVideos(folder_path : str, 
-                  output_directory : str, 
-                  chunk_duration : int, 
+def splitVideos(folder_path : str,
+                  output_directory : str,
+                  cfg: Config,
                   edited_directory: str,
                   gui: bool = False,
                   splitOneVideo: bool = False) -> None:
+    chunk_duration = cfg.chunkDuration
     print(Color.GREEN+ "\n ---------------------------------------------------------------------" + Color.END)
     if(splitOneVideo):
         print(Color.GREEN + "Splitting one video..." + Color.END)
@@ -256,15 +255,15 @@ def splitVideos(folder_path : str,
             print(Color.GREEN + "Base name: " + base_name + Color.END)
 
             #initialize the class with (video_path, output_folder, chunk_duration, vname)
-            video_editor = VideoEditor(input_path=input_video_path, 
-                                       output_folder=output_directory, 
-                                       chunk_duration=chunk_duration, 
-                                       name= base_name, 
-                                       useWhisper=useWhisperForTranscription,
-                                       filterProfanityInSubtitles=filterProfanityInSubtitles,
-                                       voskModelDir=voskModelDir,
-                                       tinyLlamaDir=tinyLlamaDir)
-            if blurred:
+            video_editor = VideoEditor(input_path=input_video_path,
+                                       output_folder=output_directory,
+                                       chunk_duration=chunk_duration,
+                                       name=base_name,
+                                       useWhisper=cfg.useWhisperForTranscription,
+                                       filterProfanityInSubtitles=cfg.filterProfanityInSubtitles,
+                                       voskModelDir=cfg.voskModelDir,
+                                       tinyLlamaDir=cfg.tinyLlamaDir)
+            if cfg.blurTopBottomOfClip:
                 print (Color.RED + "Split the video into chunks using blur" + Color.END)
                 video_editor.split_video_into_chunks_blur() 
             else : 
@@ -300,12 +299,12 @@ def splitVideos(folder_path : str,
         return
     else:
         print("CLI mode")
-        return promptUserForURLCLI(folder_path, output_directory, chunk_duration, edited_directory)
+        return promptUserForURLCLI(folder_path, output_directory, cfg, edited_directory)
 
 
-def promptUserForURLCLI(folder_path : str, 
-                        output_directory : str, 
-                        chunk_duration : int, 
+def promptUserForURLCLI(folder_path : str,
+                        output_directory : str,
+                        cfg: Config,
                         edited_directory: str) -> None:
     print(Color.RED + "No mp4 files in the folder. Please add mp4 files to the folder." + Color.END)
     #wait for user input
@@ -319,7 +318,7 @@ def promptUserForURLCLI(folder_path : str,
         if (answer == "yes"):
             waiting = False
             print(Color.GREEN + "Continuing program..." + Color.END)
-            return splitVideos(folder_path, output_directory, chunk_duration, edited_directory) #call the function again to split the video into chunks
+            return splitVideos(folder_path, output_directory, cfg, edited_directory) #call the function again to split the video into chunks
         #check if answer is url
         else :
             try:
@@ -336,7 +335,7 @@ def promptUserForURLCLI(folder_path : str,
                 download_vid(answer, folder_path)
 
                 #call the function again to split the video, checks if there are mp4 files in the folder, should be since we just downloaded a video
-                return splitVideos(folder_path, output_directory, chunk_duration, edited_directory= edited_directory) 
+                return splitVideos(folder_path, output_directory, cfg, edited_directory=edited_directory)
                 
             except Exception as e:
                 print(Color.RED + "Error downloading video: " + str(e) + Color.END)
@@ -353,7 +352,7 @@ def main(editBool = None, uploadBool = None, gui: bool = False) -> None:
     project_root = os.getcwd()
 
     #read title.txt file to print title
-    with open('title.txt', 'r') as file:
+    with open(os.path.join('assets', 'title.txt'), 'r') as file:
         title = file.read().strip()
         print(Color.RED + title + Color.END)
 
@@ -370,80 +369,31 @@ def main(editBool = None, uploadBool = None, gui: bool = False) -> None:
 
     
     # Load the config file
-    with open('config.json', 'r') as json_file:
-        data : dict[str,Any]  = json.load(json_file)
+    cfg = Config.load()
+    MinsBefore = cfg.sleepXMinsBeforeStartingUploader
+    print(Color.GREEN + "Config: " + str(cfg.model_dump()) + Color.END)
 
-    print(Color.GREEN + "Data: " + str(data) + Color.END)
-
-
-    tags = data["tags"]
-    description = data["description"]
-    howManyUploads = data["howManyUploads"]
-    howManyHoursBetweenSchedule = data["howManyHoursBetweenSchedule"]
-    howManyMinsBetweenUpload = data["howManyMinsBetweenUpload"]
-    howManyHoursLongToSleep = data["howManyHoursLongToSleep"]
-    MinsBefore = data["sleepXMinsBeforeStartingUploader"]
-    chunkDuration = data["chunkDuration"]
-    global uploadToYoutube, uploadToInstagram, uploadToTiktok, blurred, useWhisperForTranscription, filterProfanityInSubtitles, firefoxHeadless, tinyLlamaDir, voskModelDir
-    uploadToYoutube = data["uploadToYoutube"]
-    uploadToInstagram = data["uploadToInstagram"]
-    uploadToTiktok = data["uploadToTiktok"]
-    blurred = data["blurTopBottomOfClip"]
-    useWhisperForTranscription = data["useWhisperForTranscription"]
-    filterProfanityInSubtitles= data["filterProfanityInSubtitles"]
-    firefoxHeadless = data["firefoxHeadless"]
-    voskModelDir = data["voskModelDir"]
-    tinyLlamaDir = data["tinyLlamaDir"]
-
-    print(Color.GREEN + "Tags: " + str(tags) + Color.END)
-    print(Color.GREEN + "Description: " + description + Color.END)
-    print(Color.GREEN + "How many uploads: " + str(howManyUploads) + Color.END)
-    print(Color.GREEN + "How many hours between schedule: " + str(howManyHoursBetweenSchedule) + Color.END)
-    print(Color.GREEN + "How many minutes between upload: " + str(howManyMinsBetweenUpload) + Color.END)
-    print(Color.GREEN + "How many hours long to sleep: " + str(howManyHoursLongToSleep) + Color.END)
-    print(Color.GREEN + "Mins Before: " + str(MinsBefore) + Color.END)
-    print(Color.GREEN + "Chunk Duration: " + str(chunkDuration) + Color.END)
-    print(Color.GREEN + "Upload to Youtube: " + str(uploadToYoutube) + Color.END)
-    print(Color.GREEN + "Upload to Instagram: " + str(uploadToInstagram) + Color.END)
-    print(Color.GREEN + "Upload to Tiktok: " + str(uploadToTiktok) + Color.END)
-    print(Color.GREEN + "Blurred: " + str(blurred) + Color.END)
-    print(Color.GREEN + "Use Whisper for Transcription: " + str(useWhisperForTranscription) + Color.END)
-    print(Color.GREEN + "Filter Profanity in Subtitles: " + str(filterProfanityInSubtitles) + Color.END)
-    print(Color.GREEN + "Firefox Headless: " + str(firefoxHeadless) + Color.END)
-    print(Color.GREEN + "Vosk Model Dir: " + str(voskModelDir) + Color.END)
-    print(Color.GREEN + "Tiny Llama Dir: " + str(tinyLlamaDir) + Color.END)
-
-    
-
-    
     #if a flag is provided, run the program only for that flag
     if(editBool or uploadBool):
             # Split one of the videos into chunks, move into edited folder
             if editBool:
-                splitVideos(folder_path, output_directory, chunkDuration, edited_directory= edited_directory, gui=gui)
+                splitVideos(folder_path, output_directory, cfg, edited_directory=edited_directory, gui=gui)
                 return
-            
+
             # Upload the chunks to YouTube within the done_split folder
             # do this until there are no more videos to upload, then go back to editing
             if uploadBool:
                 print(Color.BLUE + "Sleeping for " + str(MinsBefore) + " minutes" + Color.END)
                 time.sleep(MinsBefore * 60)
-                uploadVideos(output_directory,
-                        howManyUploads=howManyUploads,
-                        howManyHoursBetweenSchedule=howManyHoursBetweenSchedule,
-                        howManyMinsBetweenUpload=howManyMinsBetweenUpload,
-                        howManyHoursLongToSleep=howManyHoursLongToSleep,
-                        tags=tags,
-                        description_video=description)
+                uploadVideos(output_directory, cfg)
                 return
-    
+
     #else run the program for both flags, edit one vid -> upload -> edit another vid -> upload -> etc
     i : int = 0
     while(True):
         # Split one of the videos into chunks, move into edited folder
-        splitVideos(folder_path, output_directory, chunkDuration, edited_directory= edited_directory, gui=gui, splitOneVideo=True) 
-        
-    
+        splitVideos(folder_path, output_directory, cfg, edited_directory=edited_directory, gui=gui, splitOneVideo=True)
+
         #Upload the chunks to YouTube within the done_split folder
         #if we are on the first video, sleep for MinsBefore minutes in order to delay the first upload
         if(i == 0):
@@ -453,14 +403,8 @@ def main(editBool = None, uploadBool = None, gui: bool = False) -> None:
             print(Color.BLUE+ f" => next upload at {next_upload}" + Color.END)
             time.sleep(MinsBefore * 60)
 
-        uploadVideos(output_directory,
-                    howManyUploads=howManyUploads,
-                    howManyHoursBetweenSchedule=howManyHoursBetweenSchedule,
-                    howManyMinsBetweenUpload=howManyMinsBetweenUpload,
-                    howManyHoursLongToSleep=howManyHoursLongToSleep,
-                    tags=tags,
-                    description_video=description)
-        i +=1
+        uploadVideos(output_directory, cfg)
+        i += 1
 
 # Run the main function if the name of the module is __main__
 if __name__ == "__main__":

@@ -26,9 +26,10 @@
     
 ### Podcast Clip Automation Using AI
 
-  - Edits long form content into clips with subtitles using FFmpeg & moviepy
+  - Edits long form content into clips with subtitles using FFmpeg (libass for burn-in)
+  - Web UI built with Gradio for editing — CLI still works for headless / cron use
   - Transcribes audio using Vosk or Whisper Models (your choice)
-  - Mutes audio where profanity is detected using CleanVid
+  - Mutes audio where profanity is detected using FFmpeg's `volume` filter driven by SRT timestamps
   - Uses TinyLlamma LLM to generate titles based on transcription for YouTube and Instagram.
   - Automatically uploads to YouTube, Instagram, and Tiktok based on schedule given in config file using Selenium Firefox.
   - Downloads videos from youtube using given URL using Pytube
@@ -42,47 +43,23 @@
 <details>
   <summary>Table of Contents</summary>
   <ol>
-    <li>
-      <a href="#about-the-project">About The Project</a>
+    <li><a href="#about-the-project">About The Project</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#getting-started">Getting Started</a>
       <ul>
-        <li><a href="#video-created-and-uploaded-using-brainrotinator">Video Created and Uploaded Using Brainrotinator</a></li>
+        <li><a href="#install-without-docker">Install without Docker</a></li>
+        <li><a href="#install-with-docker">Install with Docker</a></li>
       </ul>
     </li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
+    <li><a href="#running-the-program">Running the Program</a>
       <ul>
-        <li><a href="#install-and-run-with-docker">Install and run with Docker</a>
-          <ul>
-            <li><a href="#prerequisites">Prerequisites</a></li>
-            <li><a href="#installation">Installation</a></li>
-          </ul>
-        </li>
-        <li><a href="#install-and-run-without-docker">Install and run without Docker</a>
-          <ul>
-            <li><a href="#prerequisites-1">Prerequisites</a></li>
-            <li><a href="#installation-1">Installation</a></li>
-          </ul>
-        </li>
-      </ul>
-    </li>
-    <li>
-      <a href="#running-the-program">Running the Program</a>
-      <ul>
-        <li><a href="#uses">Uses</a></li>
-        <li><a href="#flags">Flags</a></li>
+        <li><a href="#gradio-ui">Gradio UI</a></li>
+        <li><a href="#cli">CLI</a></li>
         <li><a href="#config">Config</a></li>
       </ul>
     </li>
-    <li>
-      <a href="#things-to-note">Things to Note</a>
-    </li>
-    <li>
-      <a href="#vosk-or-whisper">Vosk or Whisper</a>
-      <ul>
-        <li><a href="#whisper">Whisper</a></li>
-        <li><a href="#vosk">Vosk</a></li>
-      </ul>
-    </li>
+    <li><a href="#things-to-note">Things to note</a></li>
+    <li><a href="#vosk-or-whisper">Vosk or Whisper</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
     <li><a href="#acknowledgments">Acknowledgments</a></li>
@@ -110,163 +87,193 @@ I have been editing youtube videos myself for around 10 years now. I wanted to s
 It was really fun working with AI models to make some cool features for this project
 
 
-<!-- GETTING STARTED -->
-## Getting Started
+<!-- ARCHITECTURE -->
+## Architecture
 
-Due to moviepy, the setup for this program is very difficult. That is why I included a docker file and instructions below to run that. If you are brave you can try to setup this locally without the docker file. I do not recommend it though, as I have lost days debugging random dependencies because of moviepy.
+The editor is **FFmpeg-only** as of the v2 rewrite. moviepy, ImageMagick, and cleanvid have all been removed. Setup is dramatically simpler — `pip install -r requirements.txt` and a working `ffmpeg` binary is enough to edit videos.
 
-## Install and run with docker
+```
+to_split/ ── (input mp4s)
+   │
+   ▼
+┌──────────────────────────────────────────────────┐
+│  video_editor.VideoEditor._split()               │
+│                                                  │
+│  for each chunk:                                 │
+│   1. ffmpeg cut + extract wav  ─────────►  Vosk / Whisper
+│                                              │
+│                                              ▼
+│                                      subtitles/{chunk}.srt
+│                                      subtitles/{chunk}_notClean.srt
+│                                      subtitles/{chunk}_summary.txt (TinyLlama)
+│                                              │
+│   2. subtitles.srt_to_ass  ──────────────────┤
+│                                              ▼
+│                                      subtitles/{chunk}.ass
+│                                              │
+│   3. subtitles.mute_ranges_from_srt(swears.txt) ─► [(s,e)...]
+│                                              │
+│   4. ffmpeg_ops.cut_crop_scale_burn:         │
+│        crop+scale OR blur-letterbox          │
+│        + ass=...:fontsdir=fonts/             │
+│        + volume=enable='between(t,s,e)'      │
+└──────────────────────────────────────────────────┘
+   │
+   ▼
+done_split/ ── (1080×1920 mp4 with burned subs and muted profanity)
+   │
+   ▼
+uploader_selenium / upload_tiktok ── (YouTube, Instagram, TikTok)
+```
 
-### Prerequisites
+Repo layout:
 
-  * Docker installed on your machine
-  * Python installed on machine
-  * around 10gb of VRAM on your machine
-  * around 20gb of storage space (for docker image with Vosk and TinyLlama)
-
-### Installation
-
-You can skip steps 3-4 if you are only using the video edit functionality 
-
-1. Clone the repo
-2. cd into the repo
-3. install Requirements for login
-    ```sh
-    pip install -r requirementsCookies.txt
-    ```
-4. Run Login script to get cookies for upload
-    ```sh
-    python login.py
-    ```
-    * This is needed since docker has no gui, so selenium will run headless.
-    * If cookies are not provided it will prompt you to login, causing the program to crash.
-    * The login script must be run on a pc with a gui to provide cookies before running the docker container.
-5. Build docker
-    ```sh
-    Docker build -t brainrotinator .
-    ```
-6. Run the container with a volume (so all videos are saved between container restarts)
-   ```sh
-   docker run -v "theRepositoryPathOnYourMachineHere:/app" -it brainrotinator
-   ```
-7. Start the program
-   ```sh
-   python main.py
-   ```
-8. Update config to your preferences.
-
+```
+brainrotinator/                # editor package — pure FFmpeg
+  ffmpeg_ops.py                # cut, crop, blur, burn-in, mute wrappers
+  subtitles.py                 # SRT → styled ASS, profanity → mute-range list
+  transcribe.py                # Vosk / Whisper / TinyLlama (lazy, resumable)
+  video_editor.py              # per-chunk orchestration
+  profanity.py                 # text-profanity censor
+uploaders/                     # selenium-based, unmaintained
+  login.py, uploader_selenium.py, upload_tiktok.py
+  Instagram_Uploader/, youtube_uploader_selenium/
+downloader/                    # yt-dlp downloader
+  downloadVid.py
+assets/                        # static files
+  fonts/, swears.txt, title.txt
+to_split/, done_split/, subtitles/   # runtime data
+app.py                         # Gradio entry
+main.py                        # CLI entry
+config.py / config.json        # pydantic model + values
+```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Install and run without docker
+<!-- GETTING STARTED -->
+## Getting Started
 
-### Prerequisites
+Editing requires only Python, FFmpeg (with libass), and ~8 GB of disk for models on first run. The selenium uploaders additionally need Firefox + geckodriver and per-platform cookies.
 
-* Firefox Installed
-* Python installed
-* around 10gb of VRAM on your machine
-* around 4gb for tinyLlama
-* around 4gb for vosk (same for whisper if you choose to use it instead of vosk)
+### Install without Docker
 
+**Prerequisites**
 
-### Installation
-The steps for installation are very similar to how the DockerFile is setup
+* Python 3.10+
+* FFmpeg with libass (`ffmpeg -filters | grep " ass "` should list it; most distro packages and the official Windows builds include it)
+* ~10 GB VRAM if you'll use Whisper; CPU is fine for Vosk
+* ~4 GB for the TinyLlama model, ~4 GB for the Vosk model (downloaded automatically on first use)
+* Firefox + geckodriver — only if you'll use the uploader
 
-1. Clone repository
-2. Cd into repository
-3. Install requirements
+**Steps**
+
+1. Clone the repo and `cd` in.
+2. Install Python deps:
+   ```sh
+   pip install -r requirements.txt
+   ```
+3. Make sure `ffmpeg` is on your `PATH`. No `IMAGEMAGICK_BINARY` / `FFMPEG_BINARY` env vars are needed anymore.
+4. *(Uploader only)* install geckodriver v0.32.0 and put it on your `PATH`, then run `python login.py` once on a machine with a GUI to capture cookies.
+5. Launch:
+   * Gradio UI: `python app.py` → http://localhost:7860
+   * Or CLI: `python main.py` (see [CLI](#cli) below)
+
+### Install with Docker
+
+The Docker image is mainly useful for the headless uploader. The image now defaults to launching the Gradio UI on port 7860.
+
 ```sh
-pip install -r requirements.txt
+docker build -t brainrotinator .
+docker run -v "absolute/path/to/repo:/app" -p 7860:7860 -it brainrotinator
+
+# Or
+docker run -v "$PWD:/app" -p 7860:7860 -it brainrotinator
 ```
 
-4. Install geckodriver-v0.32.0
-   * add geckoDriver to your system path
+Then open http://localhost:7860. To get a shell instead: `docker run ... -it brainrotinator bash`.
 
-5. Install ImageMagick
-
-6. Set the following enviorment variables
-
-    * IMAGEMAGICK_BINARY=pathToImageMagick.exe
-    * FFMPEG_BINARY=PathToFFMPEG.exe
-
-7. Install FFmpeg
-    * add to your system path
-
-8. Start the program
-   ```sh
-   python main.py
-   ```
-9. Update config to your preferences.
+If you'll use the uploader, run `python login.py` **on your host** first (it needs a GUI) so cookies are present in the mounted volume before the container starts.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Running the Program
 
-### Uses
-Currently the flow of the program with no flags is edit one video in the to_split folder into clips. Then upload according to schedule in the config file until the done_split folder is empty. Then repeats this.
-So edit video, upload until nothing else to upload, then edit video.
-
-### Flags
+### Gradio UI
 
 ```sh
-python main.py -e
+python app.py
 ```
- Only edits videos.
+
+Tabs:
+
+* **Edit** — upload an mp4 or paste a YouTube URL, set chunk length / blur / Vosk-vs-Whisper / profanity filter, watch logs stream as the splitter runs.
+* **Library** — list everything in `done_split/`, delete clips you don't want.
+* **Settings** — edit `config.json` in-browser, validated against the pydantic schema before save.
+
+### CLI
 
 ```sh
-python main.py -u
+python main.py        # default loop: edit one video → upload from done_split → repeat
+python main.py -e     # edit only (consume to_split/, write to done_split/)
+python main.py -u     # upload only (consume done_split/ on the schedule in config.json)
 ```
-Only uploads videos based on the config.json file
 
+When the editor runs out of videos in `to_split/`, the CLI prompts for a YouTube URL and downloads it via `yt-dlp`.
 
 ### Config
 
+`config.json` is now validated by `config.Config` (`config.py`). Defaults are filled in for any missing keys.
+
 ```json
 {
-  "tags": [
-    "chuckle Sandwich",
-    "jschlatt",
-    "ted nivison",
-    "slimecicle",
-    "gaming",
-    "comedy",
-    "tucker",
-    "jambo"
-  ], #tags for youtube, hashtags for tiktok, and instagram
-  "description": "#shorts", #description for youtube, description put before tags for instagram, and tiktok
-  "howManyUploads": 1, #how many times to upload before sleeping howManyHoursLongToSleep
-  "howManyHoursBetweenSchedule": 0, #if using schedule, how many hours between each video is scheduled [instagram does not support scheduling]
-  "howManyMinsBetweenUpload": 5, #how many mins between each upload [plus random value between 0-5 mins]
-  "howManyHoursLongToSleep": 23, #sleep x hours between each amount of howManyUploads uploads
-  "sleepXMinsBeforeStartingUploader": 0, #sleep x time on start of program before upload
-  "chunkDuration": 58, #the length in seconds you want the clip to be
-  "uploadToYoutube": true,
-  "uploadToInstagram": true,
-  "uploadToTiktok": false,
-  "blurTopBottomOfClip": true, #False means video will just be cropped to fill whole frame
-  "useWhisperForTranscription": false,
-  "filterProfanityInSubtitles": false, #if you want the profanity filter to filter out subtitles that will be overlayed in the video
-  "firefoxHeadless": true #runs firefox with or without ui
+    "tags": ["chuckle Sandwich", "jschlatt", "ted nivison", "slimecicle", "gaming", "comedy"],
+    "description": "#shorts",
+
+    "howManyUploads": 1,
+    "howManyHoursBetweenSchedule": 0,
+    "howManyMinsBetweenUpload": 5,
+    "howManyHoursLongToSleep": 23,
+    "sleepXMinsBeforeStartingUploader": 0,
+
+    "chunkDuration": 58,
+    "blurTopBottomOfClip": true,
+    "useWhisperForTranscription": false,
+    "filterProfanityInSubtitles": false,
+
+    "uploadToYoutube": true,
+    "uploadToInstagram": true,
+    "uploadToTiktok": false,
+    "firefoxHeadless": true,
+
+    "voskModelDir": "",
+    "tinyLlamaDir": ""
 }
 ```
 
-### Update the config file before running the program. 
-* Only one of Vosk or Whisper can be set to true
-
-* Headless must be set to true if running in a docker container (since docker has no gui app abilities)
-* howManyHoursBetweenSchedule or Scheduling is only supported by youtube and tiktok. It will not work with instagram
-
-
+| Key | Meaning |
+|---|---|
+| `tags` | YouTube tags; also used as #hashtags appended to the IG/TikTok caption |
+| `description` | YouTube description; prepended before tags for IG/TikTok |
+| `howManyUploads` | Uploads per cycle before sleeping `howManyHoursLongToSleep` |
+| `howManyHoursBetweenSchedule` | Hours between each scheduled upload (YouTube/TikTok only — IG ignores) |
+| `howManyMinsBetweenUpload` | Base delay between uploads, plus a 0–5 min jitter |
+| `chunkDuration` | Clip length in seconds |
+| `blurTopBottomOfClip` | `true` = blurred letterbox; `false` = center-crop to 9:16 |
+| `useWhisperForTranscription` | `true` = Whisper, `false` = Vosk |
+| `filterProfanityInSubtitles` | Censor swears in burned-in subtitles (audio is muted regardless) |
+| `firefoxHeadless` | Must be `true` inside Docker (no display) |
+| `voskModelDir`, `tinyLlamaDir` | Where to cache models. Empty = current working directory |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Things to note
-* When running headless mode (where selenium runs without ui/windowless) if you have not yet logged in, or provided cookies that were saved, the program will crash
-* uploadToTiktok flag requires you to follow the instruction from https://github.com/wkaisertexas/tiktok-uploader to setup cookies. The problem is that YOU WILL GET BLOCKED BY CAPTCAS. You can use a service like https://www.sadcaptcha.com/ to solve, but I did not want to use any pay to use api's.
 
-* swears.txt contains a list of swears the program checks for in srt file, and audio. Remove and add words to this list to your liking.
-* Due to selenium relying on the layout of a website to not change. The upload functionality will break in the future! You will need to update the elements used in youtube_uploader, and instagram_uploader. This is due to website changes for instagram, youtube, and tiktok may make in the future.
-* I WILL NOT BE MAINTAINING THIS REPO, I just wanted to share this project in case if anyone wants to try it. The editor function in this project will for sure hold up to the test of time, but the uploader may break.
+* **Editor vs uploader**: the editor is FFmpeg-only and should keep working indefinitely. The selenium uploaders depend on YouTube/IG/TikTok DOM layout and **will break** when those sites change. I am not maintaining them.
+* **`swears.txt`** is the source of truth for what gets muted. Add or remove words to taste. Matching is word-bounded so `ass` won't match `class`.
+* **TikTok uploads** require cookies from https://github.com/wkaisertexas/tiktok-uploader — and you will hit captchas. A paid solver like sadcaptcha can fix it; this repo doesn't include one.
+* **Headless selenium**: cookies must already exist or the upload will crash. Run `login.py` on a machine with a GUI first.
+* **Models** download lazily on first transcription. Vosk shows a `tqdm` progress bar; TinyLlama uses `huggingface_hub.snapshot_download` (resumable).
+* **libass fonts**: the burn-in filter is invoked with `fontsdir=fonts/`, so any `.ttf` you drop in `fonts/` is available. Default is `Bangers.ttf`.
 ## Vosk or whisper
 ### Whisper
 
@@ -325,10 +332,11 @@ Thank you to the following projects for making this possible.
 * [TinyLlama](https://huggingface.co/TinyLlama)
 * [Text Profanity Filter](https://github.com/ben174/profanity)
 * [CleanVid (mute profanity in audio)](https://github.com/mmguero/cleanvid)
-* [FFmpeg](https://ffmpeg.org/)
-* [Moviepy](https://pypi.org/project/moviepy/)
+* [FFmpeg](https://ffmpeg.org/) + [libass](https://github.com/libass/libass)
+* [pysubs2](https://github.com/tkarabela/pysubs2) (SRT → ASS conversion)
+* [Gradio](https://www.gradio.app/)
 * [Youtube selenium uploader (also what I used to make the instagram uploader)](https://github.com/linouk23/youtube_uploader_selenium)
-* [PytubeFix for downloading youtube videos](https://github.com/JuanBindez/pytubefix)
+* [yt-dlp for downloading youtube videos](https://github.com/ytdl-org/youtube-dl)
 * [TiktokUploader](https://github.com/wkaisertexas/tiktok-uploader)
 * [readme Template](https://github.com/othneildrew/Best-README-Template/blob/main/README.md)
 

@@ -1,6 +1,6 @@
-from youtube_uploader_selenium import YouTubeUploader
+from .youtube_uploader_selenium import YouTubeUploader
 #from https://github.com/linouk23/youtube_uploader_selenium
-from Instagram_Uploader.instagramUploader import InstagramUploader
+from .Instagram_Uploader.instagramUploader import InstagramUploader
 
 def upload_video_youtube(video_path: str, metadata_path: str, headless: bool, i : int = 0) -> None:
     uploader = YouTubeUploader(video_path, metadata_path, headless=headless)

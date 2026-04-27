@@ -1,6 +1,6 @@
 import os
-from youtube_uploader_selenium import YouTubeUploader
-from Instagram_Uploader.instagramUploader import InstagramUploader
+from .youtube_uploader_selenium import YouTubeUploader
+from .Instagram_Uploader.instagramUploader import InstagramUploader
 from termcolor import colored
 
 def login_youtube(metadata:str) -> None:

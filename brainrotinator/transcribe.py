@@ -1,17 +1,17 @@
 from io import BytesIO
-import json
 import re
 import subprocess
-import sys
 
 import requests
+from tqdm import tqdm
 
 import torch
 from vosk import Model, KaldiRecognizer, SetLogLevel
 import os
 
+from huggingface_hub import snapshot_download
 from termcolor import colored
-import profanity
+from . import profanity
 import whisper
 from whisper.utils import get_writer
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
@@ -65,23 +65,23 @@ class Transcribe:
         zip_filename = "vosk-model-en-us-0.42-gigaspeech.zip"
 
         if not os.path.exists(modelPath):
-            print(f"Downloading model from {url}...")
-            
-            # Download the file
-            response = requests.get(url)
-            with open(zip_filename, 'wb') as file:
-                file.write(response.content)
-            print("Download completed.")
+            print(f"Downloading Vosk model from {url}...")
+            # Streamed download with a tqdm progress bar so users can see progress on slow links.
+            with requests.get(url, stream=True, timeout=60) as response:
+                response.raise_for_status()
+                total = int(response.headers.get("content-length", 0))
+                with open(zip_filename, "wb") as f, tqdm(
+                    total=total, unit="B", unit_scale=True, desc="Vosk model"
+                ) as bar:
+                    for chunk in response.iter_content(chunk_size=1024 * 1024):
+                        if chunk:
+                            f.write(chunk)
+                            bar.update(len(chunk))
 
-            # Extract the ZIP file
-            print("Extracting the ZIP file...")
-            with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
-                zip_ref.extractall(currentWorkingDirectory)
-            print("Extraction completed.")
-
-            # Remove the ZIP file
+            print("Extracting...")
+            with zipfile.ZipFile(zip_filename, "r") as zip_ref:
+                zip_ref.extractall(voskDir)
             os.remove(zip_filename)
-            print("ZIP file removed.")
         else:
             print(f"Model already exists at {modelPath}.")
             
@@ -227,7 +227,7 @@ class Transcribe:
         profanity.set_censor_characters("*#@!")
         
         #Set swearWords to the contents of the file
-        swearsFileLocation = os.path.join(os.getcwd(), "swears.txt")
+        swearsFileLocation = os.path.join(os.getcwd(), "assets", "swears.txt")
         print(colored(f"swearsFileLocation: {swearsFileLocation}", "yellow"))
         f = open(swearsFileLocation, "r")
         swearWords = f.readlines()
@@ -252,11 +252,13 @@ class Transcribe:
         model_name = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 
         if not os.path.exists(localModelPath):
-            print(f"Downloading model from {model_name} to {localModelPath}...")
-            model = AutoModelForCausalLM.from_pretrained(model_name)
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            model.save_pretrained(localModelPath)
-            tokenizer.save_pretrained(localModelPath)
+            print(f"Downloading {model_name} -> {localModelPath} (resumable)...")
+            # snapshot_download is resumable and shows progress, unlike from_pretrained's silent download.
+            snapshot_download(
+                repo_id=model_name,
+                local_dir=localModelPath,
+                local_dir_use_symlinks=False,
+            )
         else:
             print(f"Model already exists at {localModelPath}.")
         
