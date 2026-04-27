@@ -199,7 +199,8 @@ def _update_preview(font_size: int, margin_v: int) -> str:
     """Returns HTML for a 9:16 box demonstrating subtitle size and margin."""
     # Scale font size relative to a 1080px wide container (cqw = container query width)
     # E.g., font_size 100 on an 1080 canvas is ~9.25% of width.
-    font_size_pct = (font_size / 1080) * 100
+    # (Multiply by ~0.75 because libass renders text slightly smaller than standard web CSS pixels)
+    font_size_pct = ((font_size * 0.75) / 1080) * 100
     
     # Scale margin relative to 1920px height
     top_pct = (margin_v / 1920) * 100
