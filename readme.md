@@ -362,16 +362,6 @@ Other than that do what you like with it.
 
 
 
-
-<!-- CONTACT -->
-## Contact
-
-Luke Sorvik - lukesorv@uw.edu
-
-
-
-
-
 <!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
 
@@ -389,6 +379,13 @@ Thank you to the following projects for making this possible.
 * [yt-dlp for downloading youtube videos](https://github.com/ytdl-org/youtube-dl)
 * [TiktokUploader](https://github.com/wkaisertexas/tiktok-uploader)
 * [readme Template](https://github.com/othneildrew/Best-README-Template/blob/main/README.md)
+
+
+### TODO
+- Add support for different models (current ones are outdated)
+- Change preview of subtitles, maybe run subtitles through llm to get emojis or custom colors per line
+- Color param for text
+- CV to focus crop around face/person talking
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
