@@ -14,6 +14,7 @@ import io
 import json
 import logging
 import os
+import re
 import shutil
 import sys
 import threading
@@ -38,19 +39,37 @@ class _StreamCapture(io.TextIOBase):
     """Tee writes into a thread-safe buffer so a Gradio generator can drain it."""
 
     def __init__(self):
-        self._buf: list[str] = []
+        self._buf: list[str] = [""]
         self._lock = threading.Lock()
+        self._ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
     def write(self, s: str) -> int:
         with self._lock:
-            self._buf.append(s)
+            # Strip ANSI color codes so the Gradio textbox is readable
+            clean_s = self._ansi_escape.sub('', s)
+            
+            # Handle carriage returns so tqdm progress bars don't spam multiple lines
+            if '\r' in clean_s:
+                parts = clean_s.split('\r')
+                if parts[0]:
+                    self._buf[-1] += parts[0]
+                for p in parts[1:]:
+                    if p:
+                        self._buf[-1] = p
+            else:
+                if '\n' in clean_s:
+                    lines = clean_s.split('\n')
+                    self._buf[-1] += lines[0]
+                    self._buf.extend(lines[1:])
+                else:
+                    self._buf[-1] += clean_s
         return len(s)
 
     def drain(self) -> str:
         with self._lock:
-            out = "".join(self._buf)
-            self._buf.clear()
-        return out
+            # We join the buffer but we don't clear it.
+            # This allows Gradio updates to be built cleanly over carriage returns without duplicates.
+            return "\n".join(self._buf).strip()
 
 
 def _run_edit_job(
@@ -60,6 +79,8 @@ def _run_edit_job(
     blur: bool,
     use_whisper: bool,
     filter_profanity: bool,
+    subtitle_font_size: int,
+    subtitle_margin_v: int,
 ):
     """Generator that yields cumulative log text as the edit job runs."""
 
@@ -68,30 +89,29 @@ def _run_edit_job(
     EDITED.mkdir(exist_ok=True)
 
     cfg = Config.load()
-    log = ""
     capture = _StreamCapture()
 
-    def emit(line: str) -> str:
-        nonlocal log
-        log += line
-        return log
+    def emit_sys(line: str):
+        # Directly write system log changes to the stream capture buffer
+        capture.write(line)
+        return capture.drain()
 
-    yield emit("Preparing input...\n")
+    yield emit_sys("Preparing input...\n")
 
     # Resolve input.
     if uploaded_file:
         dest = TO_SPLIT / Path(uploaded_file).name
         shutil.copy(uploaded_file, dest)
         input_path = dest
-        yield emit(f"Copied uploaded file to {dest}\n")
+        yield emit_sys(f"Copied uploaded file to {dest}\n")
     elif youtube_url.strip():
-        yield emit(f"Downloading {youtube_url}...\n")
+        yield emit_sys(f"Downloading {youtube_url}...\n")
         try:
             with redirect_stdout(capture):
                 download_vid(youtube_url.strip(), str(TO_SPLIT))
-            yield emit(capture.drain())
+            yield capture.drain()
         except Exception as e:
-            yield emit(f"Download failed: {e}\n")
+            yield emit_sys(f"Download failed: {e}\n")
             return
         # Pick the newest mp4 in to_split that isn't in edited/.
         mp4s = sorted(
@@ -100,14 +120,14 @@ def _run_edit_job(
             reverse=True,
         )
         if not mp4s:
-            yield emit("No mp4 found after download.\n")
+            yield emit_sys("No mp4 found after download.\n")
             return
         input_path = mp4s[0]
     else:
-        yield emit("Provide a file or a YouTube URL.\n")
+        yield emit_sys("Provide a file or a YouTube URL.\n")
         return
 
-    yield emit(f"Editing: {input_path}\n")
+    yield emit_sys(f"Editing: {input_path}\n")
 
     editor = VideoEditor(
         input_path=str(input_path),
@@ -118,6 +138,8 @@ def _run_edit_job(
         filterProfanityInSubtitles=filter_profanity,
         voskModelDir=cfg.voskModelDir,
         tinyLlamaDir=cfg.tinyLlamaDir,
+        subtitleFontSize=int(subtitle_font_size),
+        subtitleMarginV=int(subtitle_margin_v),
     )
 
     # Run the splitter on a background thread so we can stream prints.
@@ -140,24 +162,24 @@ def _run_edit_job(
         time.sleep(0.4)
         chunk = capture.drain()
         if chunk:
-            yield emit(chunk)
+            yield chunk
 
     chunk = capture.drain()
     if chunk:
-        yield emit(chunk)
+        yield chunk
 
     if error_box:
-        yield emit(f"\nERROR: {error_box[0]}\n")
+        yield emit_sys(f"\nERROR: {error_box[0]}\n")
         return
 
     # Move source to edited/.
     try:
         shutil.move(str(input_path), str(EDITED / input_path.name))
-        yield emit(f"\nMoved source to {EDITED / input_path.name}\n")
+        yield emit_sys(f"\nMoved source to {EDITED / input_path.name}\n")
     except Exception as e:
-        yield emit(f"\nCouldn't move source: {e}\n")
+        yield emit_sys(f"\nCouldn't move source: {e}\n")
 
-    yield emit("\nDone.\n")
+    yield emit_sys("\nDone.\n")
 
 
 def _list_clips() -> list[str]:
@@ -173,6 +195,23 @@ def _delete_clip(path: str) -> tuple[list[str], str]:
     return _list_clips(), "Nothing to delete."
 
 
+def _update_preview(font_size: int, margin_v: int) -> str:
+    """Returns HTML for a 9:16 box demonstrating subtitle size and margin."""
+    # Scale font size relative to a 1080px wide container (cqw = container query width)
+    # E.g., font_size 100 on an 1080 canvas is ~9.25% of width.
+    font_size_pct = (font_size / 1080) * 100
+    
+    # Scale margin relative to 1920px height
+    top_pct = (margin_v / 1920) * 100
+    
+    return f'''
+    <div style="width: 100%; max-width: 250px; aspect-ratio: 9/16; background: #333; position: relative; border: 2px solid #555; border-radius: 8px; margin: 0 auto; overflow: hidden; container-type: inline-size;">
+        <div style="position: absolute; top: {top_pct}%; left: 50%; transform: translateX(-50%); color: white; font-family: Impact, sans-serif; font-size: {font_size_pct}cqw; text-align: center; text-shadow: 2px 2px 4px #000; width: 90%; word-wrap: break-word; line-height: 1.1;">
+            I finally found a use case...
+        </div>
+    </div>
+    '''
+
 def build_ui() -> gr.Blocks:
     cfg = Config.load()
 
@@ -181,24 +220,35 @@ def build_ui() -> gr.Blocks:
 
         with gr.Tab("Edit"):
             with gr.Row():
-                with gr.Column():
+                with gr.Column(scale=1):
                     file_in = gr.File(label="Upload mp4", file_types=[".mp4"], type="filepath")
                     url_in = gr.Textbox(label="...or YouTube URL")
                     chunk_dur = gr.Slider(15, 120, value=cfg.chunkDuration, step=1, label="Chunk duration (s)")
                     blur = gr.Checkbox(value=cfg.blurTopBottomOfClip, label="Blur top/bottom (letterbox)")
                     whisper = gr.Checkbox(value=cfg.useWhisperForTranscription, label="Use Whisper (else Vosk)")
                     filt = gr.Checkbox(value=cfg.filterProfanityInSubtitles, label="Filter profanity in burned subtitles")
+
+                    gr.Markdown("### Subtitle Settings")
+                    sub_size = gr.Slider(10, 200, value=cfg.subtitleFontSize, step=1, label="Font Size")
+                    sub_margin = gr.Slider(0, 1920, value=cfg.subtitleMarginV, step=10, label="Margin From Top (px)")
                     run_btn = gr.Button("Run", variant="primary")
-                with gr.Column():
-                    log_box = gr.Textbox(label="Logs", lines=25, max_lines=25, autoscroll=True)
+                    
+                with gr.Column(scale=1):
+                    gr.Markdown("### Subtitle Preview")
+                    preview_html = gr.HTML(value=_update_preview(cfg.subtitleFontSize, cfg.subtitleMarginV))
+                    log_box = gr.Textbox(label="Logs", lines=20, max_lines=20, autoscroll=True)
+
+            sub_size.change(_update_preview, inputs=[sub_size, sub_margin], outputs=preview_html)
+            sub_margin.change(_update_preview, inputs=[sub_size, sub_margin], outputs=preview_html)
 
             run_btn.click(
                 _run_edit_job,
-                inputs=[file_in, url_in, chunk_dur, blur, whisper, filt],
+                inputs=[file_in, url_in, chunk_dur, blur, whisper, filt, sub_size, sub_margin],
                 outputs=log_box,
             )
 
         with gr.Tab("Library"):
+            gr.Markdown("> **Tip:** Click any filename in the list below to download it to your computer.")
             gallery = gr.Files(label="Clips in done_split/", value=_list_clips())
             refresh = gr.Button("Refresh")
             with gr.Row():

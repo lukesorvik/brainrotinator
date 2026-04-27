@@ -180,19 +180,37 @@ Editing requires only Python, FFmpeg (with libass), and ~8 GB of disk for models
 
 ### Install with Docker
 
-The Docker image is mainly useful for the headless uploader. The image now defaults to launching the Gradio UI on port 7860.
+The best way to run Brainrotinator with Docker is using **Docker Compose**. This automatically handles mounting the `to_split`, `done_split`, and `models` directories so your files and AI models are saved locally on your machine, working seamlessly across Windows, Mac, and Linux without complex path variables.
 
-```sh
-docker build -t brainrotinator .
-docker run -v "absolute/path/to/repo:/app" -p 7860:7860 -it brainrotinator
+1. Ensure your `config.json` points the AI models to the synced `models` folder:
+   ```json
+   "voskModelDir": "models",
+   "tinyLlamaDir": "models"
+   ```
 
-# Or
-docker run -v "$PWD:/app" -p 7860:7860 -it brainrotinator
-```
+2. Build and start the container in the background. (Use `--build` the first time you run this, or after pulling in new code updates):
+   ```sh
+   docker compose up -d --build
+   ```
+   *Note: On subsequent runs, you can just use `docker compose up -d` to start the container instantly without docker checking for build updates.*
 
-Then open http://localhost:7860. To get a shell instead: `docker run ... -it brainrotinator bash`.
+Then open http://localhost:7860.
+
+To view logs or access the container shell:
+* **Logs:** `docker compose logs -f`
+* **Shell:** `docker compose exec brainrotinator bash`
 
 If you'll use the uploader, run `python login.py` **on your host** first (it needs a GUI) so cookies are present in the mounted volume before the container starts.
+
+#### Save output locally without Gradio
+
+You can also run the CLI editor directly via Docker Compose (bypassing the web UI). Finished clips land in `done_split/` on your host machine, so no browser download is needed:
+
+```sh
+docker compose run --rm brainrotinator python main.py -e
+```
+
+Drop your source mp4s into `to_split/` before running.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -207,7 +225,7 @@ python app.py
 Tabs:
 
 * **Edit** — upload an mp4 or paste a YouTube URL, set chunk length / blur / Vosk-vs-Whisper / profanity filter, watch logs stream as the splitter runs.
-* **Library** — list everything in `done_split/`, delete clips you don't want.
+* **Library** — list everything in `done_split/`. **Click a filename to download it** to your computer. Delete clips you don't want.
 * **Settings** — edit `config.json` in-browser, validated against the pydantic schema before save.
 
 ### CLI

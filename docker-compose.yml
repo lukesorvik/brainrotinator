@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  brainrotinator:
+    build: .
+    image: brainrotinator:latest
+    ports:
+      - "7860:7860"
+    volumes:
+      # Video input and output
+      - ./to_split:/app/to_split
+      - ./done_split:/app/done_split
+      # AI Models (so they aren't re-downloaded on container restart)
+      - ./models:/app/models
+      - ./models/whisper:/root/.cache/whisper
+    command: python app.py

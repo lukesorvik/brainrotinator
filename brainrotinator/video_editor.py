@@ -34,6 +34,8 @@ class VideoEditor:
         filterProfanityInSubtitles: bool,
         voskModelDir: str,
         tinyLlamaDir: str,
+        subtitleFontSize: int = 100,
+        subtitleMarginV: int = 400,
     ):
         self.input_path = input_path
         self.output_folder = output_folder
@@ -43,6 +45,8 @@ class VideoEditor:
         self.filterProfanityInSubtitles = filterProfanityInSubtitles
         self.voskModelDir = voskModelDir
         self.tinyLlamaDir = tinyLlamaDir
+        self.subtitleFontSize = subtitleFontSize
+        self.subtitleMarginV = subtitleMarginV
 
     def split_video_into_chunks(self):
         self._split(blur_letterbox=False)
@@ -112,14 +116,12 @@ class VideoEditor:
             ass_path = os.path.join(subtitles_path, f"{chunk_name}.ass")
 
             # 3. Build styled ASS for burn-in.
-            #    Vertical position: top-quarter for no-blur, top-sixth for blurred (mirrors old behavior).
-            margin_v = TARGET_H // 4 if not blur_letterbox else TARGET_H // 6
             subs_mod.srt_to_ass(
                 srt_clean,
                 ass_path,
                 font_name="Bangers",
-                font_size=22,
-                margin_v=margin_v,
+                font_size=self.subtitleFontSize,
+                margin_v=self.subtitleMarginV,
             )
 
             # 4. Compute mute ranges from the unfiltered SRT (absolute seconds in source = chunk-relative + start).

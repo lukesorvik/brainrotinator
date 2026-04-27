@@ -17,12 +17,15 @@ RUN ffmpeg -hide_banner -filters 2>/dev/null | grep -q "ass " || (echo "ffmpeg l
 # packages like openai-whisper that import pkg_resources at module top-level).
 RUN pip install --upgrade pip "setuptools<71" wheel
 
-# Copy the current directory contents into the container at /app
-COPY . /app
+# Copy requirements first so Docker can cache the installed packages layer
+COPY requirements.txt /app/
 
 # Install Python deps. --no-build-isolation lets setup.py-based packages reuse
 # the setuptools we just pinned, instead of pip pulling latest into an isolated env.
 RUN pip install --no-cache-dir --no-build-isolation -r requirements.txt
+
+# Copy the rest of the application code
+COPY . /app
 
 # Geckodriver for the (optional) selenium uploaders.
 RUN wget -q https://github.com/mozilla/geckodriver/releases/download/v0.32.0/geckodriver-v0.32.0-linux64.tar.gz \

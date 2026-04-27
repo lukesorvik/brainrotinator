@@ -38,3 +38,10 @@ geckodriver
 #ignore this type of file
 *.mp3
 *.mp4
+
+# AI Models and Data Folders (We map these with volumes instead of baking into img)
+models/
+to_split/
+done_split/
+subtitles/
+.git/

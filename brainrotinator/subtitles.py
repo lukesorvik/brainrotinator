@@ -17,7 +17,7 @@ def srt_to_ass(
     srt_path: str,
     ass_path: str,
     font_name: str = "Bangers",
-    font_size: int = 22,
+    font_size: int = 90,
     primary_color: str = "&H00FFFFFF",      # white (AABBGGRR)
     outline_color: str = "&H00000000",      # black
     outline: int = 3,

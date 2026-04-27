@@ -22,7 +22,9 @@
     "blurTopBottomOfClip": true,
     "useWhisperForTranscription": false,
     "filterProfanityInSubtitles": false,
+    "subtitleFontSize": 100,
+    "subtitleMarginV": 480,
     "firefoxHeadless": true,
-    "voskModelDir": "",
-    "tinyLlamaDir": ""
+    "voskModelDir": "models",
+    "tinyLlamaDir": "models"
 }

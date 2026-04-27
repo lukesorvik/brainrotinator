@@ -33,6 +33,10 @@ class Config(BaseModel):
     useWhisperForTranscription: bool = False
     filterProfanityInSubtitles: bool = False
 
+    # Subtitles
+    subtitleFontSize: int = 100
+    subtitleMarginV: int = 480
+
     # Upload targets
     uploadToYoutube: bool = True
     uploadToInstagram: bool = True
@@ -42,8 +46,8 @@ class Config(BaseModel):
     firefoxHeadless: bool = True
 
     # Model dirs (empty = use cwd)
-    voskModelDir: str = ""
-    tinyLlamaDir: str = ""
+    voskModelDir: str = "models"
+    tinyLlamaDir: str = "models"
 
     @classmethod
     def load(cls, path: Path | str = CONFIG_PATH) -> "Config":
